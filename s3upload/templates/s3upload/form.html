@@ -1,0 +1,17 @@
+{% extends "s3upload/base.html" %}
+
+{% block title %}Upload file{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {{ form.media }}
+{% endblock %}
+
+{% block content %}
+  <form action="{{ form.get_action }}" method="post" enctype="multipart/form-data">
+    <fieldset>
+      {% for field in form %}{{ field }}{% endfor %}
+      <input name="submit" value="Upload" type="submit" />
+    </fieldset>
+  </form>
+{% endblock %}
