@@ -13,6 +13,7 @@ class S3UploadForm(forms.Form):
     """Form for uploading a file directly to an S3 bucket."""
 
     content_type_prefix = '' # e.g. 'image/', 'text/'
+    expiration_timedelta = timedelta(minutes=20)
     upload_to = '' # e.g. 'foo/bar/'
     storage = default_storage
 
@@ -61,7 +62,7 @@ class S3UploadForm(forms.Form):
         return self.get_storage().bucket_name
 
     def get_callback_url(self):
-        #TODO: Callback url
+        # TODO: Callback url
         raise NotImplementedError()
 
     def get_conditions(self):
@@ -81,7 +82,7 @@ class S3UploadForm(forms.Form):
 
     def get_expiration_time(self, refresh=False):
         if not hasattr(self, '_expiration_time') and not refresh:
-            expiration_datetime = datetime.now() + timedelta(minutes=30) #TODO
+            expiration_datetime = datetime.now() + self.expiration_timedelta
             self._expiration_time = expiration_datetime.timetuple()
         return self._expiration_time
 
