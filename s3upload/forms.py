@@ -12,21 +12,30 @@ import time
 class S3UploadForm(forms.Form):
     """Form for uploading a file directly to an S3 bucket."""
 
-    content_type_prefix = '' # e.g. 'image/', 'text/'
-    expiration_timedelta = timedelta(minutes=20)
-    upload_to = '' # e.g. 'foo/bar/'
-    storage = default_storage
-
     access_key = forms.CharField(widget=forms.HiddenInput())
+
     key = forms.CharField(widget=forms.HiddenInput())
+
     acl = forms.CharField(widget=forms.HiddenInput())
+
     policy = forms.CharField(widget=forms.HiddenInput())
+
     signature = forms.CharField(widget=forms.HiddenInput())
+
     content_type = forms.CharField(widget=forms.HiddenInput())
+
     file = forms.FileField()
+
+    content_type_prefix = '' # e.g. 'image/', 'text/'
+
+    expiration_timedelta = timedelta(minutes=20)
 
     field_name_overrides = {'content_type': 'Content-Type',
                             'access_key': 'AWSAccessKeyId'}
+
+    upload_to = '' # e.g. 'foo/bar/'
+
+    storage = default_storage
 
     def __init__(self, *args, **kwargs):
         super(S3UploadForm, self).__init__(*args, **kwargs)
