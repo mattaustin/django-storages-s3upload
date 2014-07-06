@@ -1,4 +1,20 @@
 # -*- coding: utf-8 -*-
+#
+# Copyright 2014 Matt Austin
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 from __future__ import absolute_import, unicode_literals
 from datetime import datetime, timedelta
 from django import forms
@@ -40,11 +56,8 @@ class S3UploadForm(forms.Form):
 
     storage = default_storage
 
-    success_url = None
-
-    def __init__(self, success_url=None, **kwargs):
-        if success_url is not None:
-            self.success_url = success_url
+    def __init__(self, success_action_redirect=None, **kwargs):
+        self._success_action_redirect = success_action_redirect
         super(S3UploadForm, self).__init__(**kwargs)
         self.fields['access_key'].initial = self.get_access_key()
         self.fields['acl'].initial = self.get_acl()
@@ -53,10 +66,11 @@ class S3UploadForm(forms.Form):
         self.fields['policy'].initial = self.get_policy()
         self.fields['signature'].initial = self.get_signature()
 
-        # Only render success_action_redirect if a success url is provided
-        success_url = self.get_success_url()
-        if success_url:
-            self.fields['success_action_redirect'].initial = success_url
+        # Only render success_action_redirect if a value is provided
+        success_action_redirect = self.get_success_action_redirect()
+        if success_action_redirect:
+            self.fields['success_action_redirect'].initial = \
+                success_action_redirect
         else:
             self.fields.pop('success_action_redirect')
 
@@ -84,10 +98,6 @@ class S3UploadForm(forms.Form):
     def get_bucket_name(self):
         return self.get_storage().bucket_name
 
-    def get_callback_url(self):
-        # TODO: Callback url
-        raise NotImplementedError()
-
     def get_conditions(self):
         conditions = [
             '{{"acl": "{0}"}}'.format(self.get_acl()),
@@ -97,12 +107,12 @@ class S3UploadForm(forms.Form):
             '["starts-with", "$key", "{0}"]'.format(self.get_key_prefix()),
         ]
 
-        # Only render success_action_redirect if a success url is provided
-        success_url = self.get_success_url()
-        if success_url:
+        # Only render success_action_redirect if a value is provided
+        success_action_redirect = self.get_success_action_redirect()
+        if success_action_redirect:
             conditions += [
                 '["eq", "$success_action_redirect", "{0}"]'.format(
-                    success_url)
+                    success_action_redirect)
             ]
 
         return conditions
@@ -144,5 +154,5 @@ class S3UploadForm(forms.Form):
     def get_storage(self):
         return self.storage
 
-    def get_success_url(self):
-        return self.success_url
+    def get_success_action_redirect(self):
+        return self._success_action_redirect
