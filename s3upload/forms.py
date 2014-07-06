@@ -24,6 +24,9 @@ class S3UploadForm(forms.Form):
 
     content_type = forms.CharField(widget=forms.HiddenInput())
 
+    # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTFormFields
+    # The file or content must be the last field rendered in the form.
+    # Any fields below it are ignored.
     file = forms.FileField()
 
     content_type_prefix = '' # e.g. 'image/', 'text/'
@@ -102,12 +105,14 @@ class S3UploadForm(forms.Form):
         return self.upload_to
 
     def get_policy(self):
+        # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTConstructPolicy
         connection = self.get_connection()
         policy = connection.build_post_policy(self.get_expiration_time(),
                                               self.get_conditions())
         return self._base64_encode(policy.replace('\n', '').encode('utf-8'))
 
     def get_signature(self):
+        # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTConstructingPolicySignature
         digest = hmac.new(self.get_secret_key().encode('utf-8'),
                           self.get_policy(), sha1).digest()
         return self._base64_encode(digest)
