@@ -20,10 +20,21 @@ from datetime import datetime, timedelta
 from django import forms
 from django.core.files.storage import default_storage
 from hashlib import sha1
+from magic import Magic
 import hmac
 
 
-class S3UploadForm(forms.Form):
+class StorageMixin(object):
+
+    def __init__(self, storage=None, **kwargs):
+        self.storage = storage if storage is not None else default_storage
+        return super(StorageMixin, self).__init__(**kwargs)
+
+    def get_storage(self):
+        return self.storage
+
+
+class S3UploadForm(StorageMixin, forms.Form):
     """Form for uploading a file directly to an S3 bucket."""
 
     access_key = forms.CharField(widget=forms.HiddenInput())
@@ -53,8 +64,6 @@ class S3UploadForm(forms.Form):
                             'access_key': 'AWSAccessKeyId'}
 
     upload_to = ''  # e.g. 'foo/bar/'
-
-    storage = default_storage
 
     def __init__(self, success_action_redirect=None, **kwargs):
         self._success_action_redirect = success_action_redirect
@@ -91,9 +100,8 @@ class S3UploadForm(forms.Form):
         return self.get_storage().default_acl
 
     def get_action(self):
-        # TODO: Can we get the full url from storage instead of reconstructing
-        # it? What if the storage already has a prefix specified?
-        return 'https://{0}.s3.amazonaws.com/'.format(self.get_bucket_name())
+        # TODO: What if the storage already has a prefix specified?
+        return self.get_storage().url('')
 
     def get_bucket_name(self):
         return self.get_storage().bucket_name
@@ -151,8 +159,49 @@ class S3UploadForm(forms.Form):
     def get_secret_key(self):
         return self.get_storage().secret_key
 
-    def get_storage(self):
-        return self.storage
-
     def get_success_action_redirect(self):
         return self._success_action_redirect
+
+
+class ValidateS3UploadForm(StorageMixin, forms.Form):
+    """Form used to validate callback params."""
+
+    bucket = forms.CharField(widget=forms.HiddenInput())
+
+    etag = forms.CharField(widget=forms.HiddenInput())
+
+    key = forms.CharField(widget=forms.HiddenInput())
+
+    def clean(self):
+        # Ensure key and etag match
+        if self.cleaned_data.get('key') and self.cleaned_data.get('etag'):
+            if not self.get_key().etag == self.cleaned_data['etag']:
+                raise forms.ValidationError('Etag does not validate.')
+        return self.cleaned_data
+
+    def clean_bucket(self):
+        # Ensure bucket in callback matches bucket name
+        bucket_name = self.cleaned_data['bucket']
+        if not bucket_name == self.get_bucket_name():
+            raise forms.ValidationError('Bucket name does not validate.')
+        return bucket_name
+
+    def clean_key(self):
+        # Ensure key exists
+        key = self.cleaned_data['key']
+        if not self.get_storage().exists(key):
+            raise forms.ValidationError('Key does not validate.')
+        return key
+
+    def get_bucket_name(self):
+        return self.get_storage().bucket_name
+
+    def get_key(self):
+        return self.get_storage().bucket.get_key(self.cleaned_data['key'])
+
+    def set_content_type(self):
+        key = self.get_key()
+        with self.get_storage().open(self.cleaned_data['key']) as upload:
+            content_type = Magic(mime=True).from_buffer(upload.read())
+        key.update_metadata({b'Content-Type': b'{0}'.format(content_type)})
+        key.copy(key.bucket.name, key.name, key.metadata, preserve_acl=True)
