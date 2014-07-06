@@ -26,6 +26,8 @@ class S3UploadFormView(generic.edit.FormMixin,
                        generic.base.TemplateResponseMixin, generic.View):
 
     # TODO: Split new upload from upload validation?
+    # TODO: Pass key prefix to from view to both forms?
+    # TODO: Set additional metadata for upload, e.g. cache?
 
     form_class = S3UploadForm
 

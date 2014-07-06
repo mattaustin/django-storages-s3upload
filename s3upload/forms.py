@@ -180,13 +180,15 @@ class ValidateS3UploadForm(StorageMixin, forms.Form):
         return self.cleaned_data
 
     def clean_bucket(self):
-        # Ensure bucket in callback matches bucket name
+        # Ensure bucket in callback matches bucket name from storage
         bucket_name = self.cleaned_data['bucket']
         if not bucket_name == self.get_bucket_name():
             raise forms.ValidationError('Bucket name does not validate.')
         return bucket_name
 
     def clean_key(self):
+        # TODO: Validate key starts with prefix?
+        # TODO: Validate content type starts with prefix?
         # Ensure key exists
         key = self.cleaned_data['key']
         if not self.get_storage().exists(key):
