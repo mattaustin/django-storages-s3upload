@@ -14,15 +14,17 @@ class S3UploadForm(forms.Form):
 
     access_key = forms.CharField(widget=forms.HiddenInput())
 
-    key = forms.CharField(widget=forms.HiddenInput())
-
     acl = forms.CharField(widget=forms.HiddenInput())
+
+    content_type = forms.CharField(widget=forms.HiddenInput())
+
+    key = forms.CharField(widget=forms.HiddenInput())
 
     policy = forms.CharField(widget=forms.HiddenInput())
 
-    signature = forms.CharField(widget=forms.HiddenInput())
+    success_action_redirect = forms.CharField(widget=forms.HiddenInput())
 
-    content_type = forms.CharField(widget=forms.HiddenInput())
+    signature = forms.CharField(widget=forms.HiddenInput())
 
     # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTFormFields
     # The file or content must be the last field rendered in the form.
@@ -40,14 +42,25 @@ class S3UploadForm(forms.Form):
 
     storage = default_storage
 
-    def __init__(self, *args, **kwargs):
-        super(S3UploadForm, self).__init__(*args, **kwargs)
+    success_url = None
+
+    def __init__(self, success_url=None, **kwargs):
+        if success_url is not None:
+            self.success_url = success_url
+        super(S3UploadForm, self).__init__(**kwargs)
         self.fields['access_key'].initial = self.get_access_key()
-        self.fields['key'].initial = self.get_key()
         self.fields['acl'].initial = self.get_acl()
+        self.fields['content_type'].initial = 'binary/octet-stream' #TODO
+        self.fields['key'].initial = self.get_key()
         self.fields['policy'].initial = self.get_policy()
         self.fields['signature'].initial = self.get_signature()
-        self.fields['content_type'].initial = 'binary/octet-stream' #TODO
+
+        # Only render success_action_redirect if a success url is provided
+        success_url = self.get_success_url()
+        if success_url:
+            self.fields['success_action_redirect'].initial = success_url
+        else:
+            self.fields.pop('success_action_redirect')
 
     def _base64_encode(self, string):
         return string.encode('base64').replace('\n', '')
@@ -78,13 +91,23 @@ class S3UploadForm(forms.Form):
         raise NotImplementedError()
 
     def get_conditions(self):
-        return [
+        conditions = [
             '{{"acl": "{0}"}}'.format(self.get_acl()),
             '{{"bucket": "{0}"}}'.format(self.get_bucket_name()),
-            '["starts-with", "$key", "{0}"]'.format(self.get_key_prefix()),
             '["starts-with", "$Content-Type", "{0}"]'.format(
                 self.get_content_type_prefix()),
+            '["starts-with", "$key", "{0}"]'.format(self.get_key_prefix()),
         ]
+
+        # Only render success_action_redirect if a success url is provided
+        success_url = self.get_success_url()
+        if success_url:
+            conditions += [
+                '["eq", "$success_action_redirect", "{0}"]'.format(
+                    success_url)
+            ]
+
+        return conditions
 
     def get_connection(self):
         return self.get_storage().connection
@@ -122,3 +145,6 @@ class S3UploadForm(forms.Form):
 
     def get_storage(self):
         return self.storage
+
+    def get_success_url(self):
+        return self.success_url
