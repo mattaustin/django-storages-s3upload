@@ -4,9 +4,7 @@ from datetime import datetime, timedelta
 from django import forms
 from django.core.files.storage import default_storage
 from hashlib import sha1
-import base64
 import hmac
-import time
 
 
 class S3UploadForm(forms.Form):
@@ -31,14 +29,14 @@ class S3UploadForm(forms.Form):
     # Any fields below it are ignored.
     file = forms.FileField()
 
-    content_type_prefix = '' # e.g. 'image/', 'text/'
+    content_type_prefix = ''  # e.g. 'image/', 'text/'
 
     expiration_timedelta = timedelta(minutes=20)
 
     field_name_overrides = {'content_type': 'Content-Type',
                             'access_key': 'AWSAccessKeyId'}
 
-    upload_to = '' # e.g. 'foo/bar/'
+    upload_to = ''  # e.g. 'foo/bar/'
 
     storage = default_storage
 
@@ -50,7 +48,7 @@ class S3UploadForm(forms.Form):
         super(S3UploadForm, self).__init__(**kwargs)
         self.fields['access_key'].initial = self.get_access_key()
         self.fields['acl'].initial = self.get_acl()
-        self.fields['content_type'].initial = 'binary/octet-stream' #TODO
+        self.fields['content_type'].initial = 'binary/octet-stream'  # TODO
         self.fields['key'].initial = self.get_key()
         self.fields['policy'].initial = self.get_policy()
         self.fields['signature'].initial = self.get_signature()
