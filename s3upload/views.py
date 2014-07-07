@@ -33,7 +33,7 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     storage = default_storage
 
-    template_name = 'filetest/form.html'
+    template_name = 's3upload/form.html'
 
     upload_to = ''  # e.g. 'foo/bar/'
 

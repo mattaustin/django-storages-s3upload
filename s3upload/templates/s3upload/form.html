@@ -1,17 +1,22 @@
 {% extends "s3upload/base.html" %}
 
-{% block title %}Upload file{% endblock %}
-
-{% block extrahead %}
-  {{ block.super }}
-  {{ form.media }}
-{% endblock %}
 
 {% block content %}
   <form action="{{ form.get_action }}" method="post" enctype="multipart/form-data">
+    <div>{% for field in form.hidden_fields %}{{ field }}{% endfor %}</div>
+    {{ form.non_field_errors }}
     <fieldset>
-      {% for field in form %}{{ field }}{% endfor %}
-      <input name="submit" value="Upload" type="submit" />
+      <ul>
+        {% for field in form.visible_fields %}
+          <li class="{{ field.name|slugify }}{% if field.css_classes %} {{ field.css_classes }}{% endif %}">
+            {{ field.label_tag }}
+            {{ field.errors }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            <div class="field">{{ field }}</div>
+          </li>
+        {% endfor %}
+        <li class="actions"><input name="submit" value="{{ form_submit_value|default:"Upload" }}" type="submit" /></li>
+      </ul>
     </fieldset>
   </form>
 {% endblock %}
