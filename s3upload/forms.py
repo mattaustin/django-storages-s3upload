@@ -244,7 +244,7 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
     def set_content_type(self):
         key = self._get_key()
         with self.get_storage().open(self.cleaned_data['key_name']) as upload:
-            content_type = Magic(mime=True).from_buffer(upload.read())
+            content_type = Magic(mime=True).from_buffer(upload.read(1024))
         # TODO
         if not content_type.startswith(self.get_content_type_prefix()):
             raise forms.ValidationError('Content-Type does not validate.')
