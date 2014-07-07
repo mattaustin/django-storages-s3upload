@@ -26,8 +26,9 @@ class S3UploadFormView(generic.edit.FormMixin,
                        generic.base.TemplateResponseMixin, generic.View):
 
     # TODO: Split new upload from upload validation?
-    # TODO: Pass key prefix to from view to both forms?
     # TODO: Set additional metadata for upload, e.g. cache?
+
+    content_type_prefix = ''  # e.g. 'image/', 'text/'
 
     form_class = S3UploadForm
 
@@ -53,6 +54,9 @@ class S3UploadFormView(generic.edit.FormMixin,
         form = self.get_form(form_class)
         return self.render_to_response(self.get_context_data(form=form))
 
+    def get_content_type_prefix(self):
+        return self.content_type_prefix
+
     def get_upload_to(self):
         return self.upload_to
 
@@ -61,6 +65,7 @@ class S3UploadFormView(generic.edit.FormMixin,
                                                                     **kwargs)
         form_kwargs.update(
             {'storage': self.get_storage(), 'upload_to': self.get_upload_to(),
+             'content_type_prefix': self.get_content_type_prefix(),
              'success_action_redirect': self.get_success_action_redirect()})
         return form_kwargs
 
@@ -75,8 +80,10 @@ class S3UploadFormView(generic.edit.FormMixin,
         data = {'bucket_name': self.request.GET.get('bucket'),
                 'key_name': self.request.GET.get('key'),
                 'etag': self.request.GET.get('etag')}
-        form = ValidateS3UploadForm(data=data, storage=self.get_storage(),
-                                    upload_to=self.get_upload_to())
+        form = ValidateS3UploadForm(
+            data=data, storage=self.get_storage(),
+            content_type_prefix=self.get_content_type_prefix(),
+            upload_to=self.get_upload_to())
         if form.is_valid():
             return self.form_valid(form)
         else:

@@ -24,14 +24,17 @@ from magic import Magic
 import hmac
 
 
-class StorageMixin(object):
+class ContentTypePrefixMixin(object):
 
-    def __init__(self, storage=None, **kwargs):
-        self.storage = storage if storage is not None else default_storage
-        return super(StorageMixin, self).__init__(**kwargs)
+    content_type_prefix = ''  # e.g. 'image/', 'text/'
 
-    def get_storage(self):
-        return self.storage
+    def __init__(self, content_type_prefix=None, **kwargs):
+        if content_type_prefix is not None:
+            self.content_type_prefix = content_type_prefix
+        return super(ContentTypePrefixMixin, self).__init__(**kwargs)
+
+    def get_content_type_prefix(self):
+        return self.content_type_prefix
 
 
 class KeyPrefixMixin(object):
@@ -47,7 +50,18 @@ class KeyPrefixMixin(object):
         return self.upload_to
 
 
-class S3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
+class StorageMixin(object):
+
+    def __init__(self, storage=None, **kwargs):
+        self.storage = storage if storage is not None else default_storage
+        return super(StorageMixin, self).__init__(**kwargs)
+
+    def get_storage(self):
+        return self.storage
+
+
+class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
+                   forms.Form):
     """Form for uploading a file directly to an S3 bucket."""
 
     access_key = forms.CharField(widget=forms.HiddenInput())
@@ -68,8 +82,6 @@ class S3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
     # The file or content must be the last field rendered in the form.
     # Any fields below it are ignored.
     file = forms.FileField()
-
-    content_type_prefix = ''  # e.g. 'image/', 'text/'
 
     expiration_timedelta = timedelta(minutes=20)
 
@@ -139,9 +151,6 @@ class S3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
     def get_connection(self):
         return self.get_storage().connection
 
-    def get_content_type_prefix(self):
-        return self.content_type_prefix
-
     def get_expiration_time(self, refresh=False):
         if not hasattr(self, '_expiration_time') and not refresh:
             expiration_datetime = datetime.now() + self.expiration_timedelta
@@ -174,7 +183,8 @@ class S3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
         return self._success_action_redirect
 
 
-class ValidateS3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
+class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
+                           StorageMixin, forms.Form):
     """Form used to validate callback params."""
 
     bucket_name = forms.CharField(widget=forms.HiddenInput())
@@ -187,10 +197,14 @@ class ValidateS3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
         return self.get_storage().bucket.get_key(self.cleaned_data['key_name'])
 
     def clean(self):
-        # Ensure key and etag match
         if self.cleaned_data.get('key_name') and self.cleaned_data.get('etag'):
-            if not self._get_key().etag == self.cleaned_data['etag']:
+            key = self._get_key()
+            # Ensure key and etag match
+            if not key.etag == self.cleaned_data['etag']:
                 raise forms.ValidationError('Etag does not validate.')
+            # Ensure content type starts with prefix
+            if not key.content_type.startswith(self.get_content_type_prefix()):
+                raise forms.ValidationError('Content-Type does not validate.')
         return self.cleaned_data
 
     def clean_bucket_name(self):
@@ -201,7 +215,6 @@ class ValidateS3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
         return bucket_name
 
     def clean_key_name(self):
-        # TODO: Validate content type starts with prefix?
         key = self.cleaned_data['key_name']
         # Ensure key starts with prefix
         if not key.startswith(self.get_key_prefix()):
@@ -218,6 +231,9 @@ class ValidateS3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
         key = self._get_key()
         with self.get_storage().open(self.cleaned_data['key_name']) as upload:
             content_type = Magic(mime=True).from_buffer(upload.read())
+        # TODO
+        if not content_type.startswith(self.get_content_type_prefix()):
+            raise forms.ValidationError('Content-Type does not validate.')
         key.update_metadata({b'Content-Type': b'{0}'.format(content_type)})
         key.copy(key.bucket.name, key.name, key.metadata, preserve_acl=True)
     set_content_type.alters_data = True
