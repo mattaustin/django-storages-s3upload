@@ -76,6 +76,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     success_action_redirect = forms.CharField(widget=forms.HiddenInput())
 
+    success_action_status = forms.CharField(widget=forms.HiddenInput())
+
     signature = forms.CharField(widget=forms.HiddenInput())
 
     # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTFormFields
@@ -88,6 +90,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
     field_name_overrides = {'content_type': 'Content-Type',
                             'access_key': 'AWSAccessKeyId'}
 
+    success_action_status_code = 204
+
     def __init__(self, success_action_redirect=None, **kwargs):
         self._success_action_redirect = success_action_redirect
         super(S3UploadForm, self).__init__(**kwargs)
@@ -96,6 +100,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         self.fields['key'].initial = self.get_key()
         self.fields['policy'].initial = self.get_policy()
         self.fields['signature'].initial = self.get_signature()
+        self.fields['success_action_status'].initial = \
+            self.get_success_action_status_code()
 
         if not self.fields['content_type'].initial:
             self.fields['content_type'].initial = 'binary/octet-stream'
@@ -138,6 +144,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
             '["starts-with", "$Content-Type", "{0}"]'.format(
                 self.get_content_type_prefix()),
             '["starts-with", "$key", "{0}"]'.format(self.get_key_prefix()),
+            '["eq", "$success_action_status", "{0}"]'.format(
+                self.get_success_action_status_code()),
         ]
 
         # Only render success_action_redirect if a value is provided
@@ -183,6 +191,10 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     def get_success_action_redirect(self):
         return self._success_action_redirect
+
+    def get_success_action_status_code(self):
+        return self.success_action_status_code
+
 
 
 class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
