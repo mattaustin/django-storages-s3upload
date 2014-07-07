@@ -34,7 +34,20 @@ class StorageMixin(object):
         return self.storage
 
 
-class S3UploadForm(StorageMixin, forms.Form):
+class KeyPrefixMixin(object):
+
+    upload_to = ''  # e.g. 'foo/bar/'
+
+    def __init__(self, upload_to=None, **kwargs):
+        if upload_to is not None:
+            self.upload_to = upload_to
+        return super(KeyPrefixMixin, self).__init__(**kwargs)
+
+    def get_key_prefix(self):
+        return self.upload_to
+
+
+class S3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
     """Form for uploading a file directly to an S3 bucket."""
 
     access_key = forms.CharField(widget=forms.HiddenInput())
@@ -62,8 +75,6 @@ class S3UploadForm(StorageMixin, forms.Form):
 
     field_name_overrides = {'content_type': 'Content-Type',
                             'access_key': 'AWSAccessKeyId'}
-
-    upload_to = ''  # e.g. 'foo/bar/'
 
     def __init__(self, success_action_redirect=None, **kwargs):
         self._success_action_redirect = success_action_redirect
@@ -163,7 +174,7 @@ class S3UploadForm(StorageMixin, forms.Form):
         return self._success_action_redirect
 
 
-class ValidateS3UploadForm(StorageMixin, forms.Form):
+class ValidateS3UploadForm(KeyPrefixMixin, StorageMixin, forms.Form):
     """Form used to validate callback params."""
 
     bucket_name = forms.CharField(widget=forms.HiddenInput())
@@ -191,10 +202,13 @@ class ValidateS3UploadForm(StorageMixin, forms.Form):
 
     def clean_key_name(self):
         # TODO: Validate content type starts with prefix?
-        # Ensure key exists
         key = self.cleaned_data['key_name']
+        # Ensure key starts with prefix
+        if not key.startswith(self.get_key_prefix()):
+            raise forms.ValidationError('Key does not have required prefix.')
+        # Ensure key exists
         if not self.get_storage().exists(key):
-            raise forms.ValidationError('Key does not validate.')
+            raise forms.ValidationError('Key does not exist.')
         return key
 
     def get_bucket_name(self):

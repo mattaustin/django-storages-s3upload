@@ -35,6 +35,8 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     template_name = 'filetest/form.html'
 
+    upload_to = ''  # e.g. 'foo/bar/'
+
     def form_invalid(self, form):
         return HttpResponseBadRequest('Upload does not validate.')
 
@@ -51,11 +53,14 @@ class S3UploadFormView(generic.edit.FormMixin,
         form = self.get_form(form_class)
         return self.render_to_response(self.get_context_data(form=form))
 
+    def get_upload_to(self):
+        return self.upload_to
+
     def get_form_kwargs(self, *args, **kwargs):
         form_kwargs = super(S3UploadFormView, self).get_form_kwargs(*args,
                                                                     **kwargs)
         form_kwargs.update(
-            {'storage': self.get_storage(),
+            {'storage': self.get_storage(), 'upload_to': self.get_upload_to(),
              'success_action_redirect': self.get_success_action_redirect()})
         return form_kwargs
 
@@ -70,7 +75,8 @@ class S3UploadFormView(generic.edit.FormMixin,
         data = {'bucket_name': self.request.GET.get('bucket'),
                 'key_name': self.request.GET.get('key'),
                 'etag': self.request.GET.get('etag')}
-        form = ValidateS3UploadForm(data=data, storage=self.get_storage())
+        form = ValidateS3UploadForm(data=data, storage=self.get_storage(),
+                                    upload_to=self.get_upload_to())
         if form.is_valid():
             return self.form_valid(form)
         else:
