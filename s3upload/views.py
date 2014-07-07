@@ -25,7 +25,6 @@ from .forms import S3UploadForm, ValidateS3UploadForm
 class S3UploadFormView(generic.edit.FormMixin,
                        generic.base.TemplateResponseMixin, generic.View):
 
-    # TODO: Split new upload from upload validation?
     # TODO: Set additional metadata for upload, e.g. cache?
 
     content_type_prefix = ''  # e.g. 'image/', 'text/'

@@ -93,10 +93,12 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         super(S3UploadForm, self).__init__(**kwargs)
         self.fields['access_key'].initial = self.get_access_key()
         self.fields['acl'].initial = self.get_acl()
-        self.fields['content_type'].initial = 'binary/octet-stream'  # TODO
         self.fields['key'].initial = self.get_key()
         self.fields['policy'].initial = self.get_policy()
         self.fields['signature'].initial = self.get_signature()
+
+        if not self.fields['content_type'].initial:
+            self.fields['content_type'].initial = 'binary/octet-stream'
 
         # Only render success_action_redirect if a value is provided
         success_action_redirect = self.get_success_action_redirect()
