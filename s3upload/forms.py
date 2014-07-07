@@ -166,31 +166,33 @@ class S3UploadForm(StorageMixin, forms.Form):
 class ValidateS3UploadForm(StorageMixin, forms.Form):
     """Form used to validate callback params."""
 
-    bucket = forms.CharField(widget=forms.HiddenInput())
+    bucket_name = forms.CharField(widget=forms.HiddenInput())
 
     etag = forms.CharField(widget=forms.HiddenInput())
 
-    key = forms.CharField(widget=forms.HiddenInput())
+    key_name = forms.CharField(widget=forms.HiddenInput())
+
+    def _get_key(self):
+        return self.get_storage().bucket.get_key(self.cleaned_data['key_name'])
 
     def clean(self):
         # Ensure key and etag match
-        if self.cleaned_data.get('key') and self.cleaned_data.get('etag'):
-            if not self.get_key().etag == self.cleaned_data['etag']:
+        if self.cleaned_data.get('key_name') and self.cleaned_data.get('etag'):
+            if not self._get_key().etag == self.cleaned_data['etag']:
                 raise forms.ValidationError('Etag does not validate.')
         return self.cleaned_data
 
-    def clean_bucket(self):
+    def clean_bucket_name(self):
         # Ensure bucket in callback matches bucket name from storage
-        bucket_name = self.cleaned_data['bucket']
+        bucket_name = self.cleaned_data['bucket_name']
         if not bucket_name == self.get_bucket_name():
             raise forms.ValidationError('Bucket name does not validate.')
         return bucket_name
 
-    def clean_key(self):
-        # TODO: Validate key starts with prefix?
+    def clean_key_name(self):
         # TODO: Validate content type starts with prefix?
         # Ensure key exists
-        key = self.cleaned_data['key']
+        key = self.cleaned_data['key_name']
         if not self.get_storage().exists(key):
             raise forms.ValidationError('Key does not validate.')
         return key
@@ -198,12 +200,10 @@ class ValidateS3UploadForm(StorageMixin, forms.Form):
     def get_bucket_name(self):
         return self.get_storage().bucket_name
 
-    def get_key(self):
-        return self.get_storage().bucket.get_key(self.cleaned_data['key'])
-
     def set_content_type(self):
-        key = self.get_key()
-        with self.get_storage().open(self.cleaned_data['key']) as upload:
+        key = self._get_key()
+        with self.get_storage().open(self.cleaned_data['key_name']) as upload:
             content_type = Magic(mime=True).from_buffer(upload.read())
         key.update_metadata({b'Content-Type': b'{0}'.format(content_type)})
         key.copy(key.bucket.name, key.name, key.metadata, preserve_acl=True)
+    set_content_type.alters_data = True

@@ -67,8 +67,8 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     def validate_upload(self):
         # Validate a new upload
-        data = {'bucket': self.request.GET.get('bucket'),
-                'key': self.request.GET.get('key'),
+        data = {'bucket_name': self.request.GET.get('bucket'),
+                'key_name': self.request.GET.get('key'),
                 'etag': self.request.GET.get('etag')}
         form = ValidateS3UploadForm(data=data, storage=self.get_storage())
         if form.is_valid():
