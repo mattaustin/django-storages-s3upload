@@ -47,7 +47,7 @@ class KeyPrefixMixin(object):
         return super(KeyPrefixMixin, self).__init__(**kwargs)
 
     def get_key_prefix(self):
-        return self.upload_to
+        return ''.join([self.get_storage().location, self.upload_to])
 
 
 class StorageMixin(object):
@@ -131,8 +131,11 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         return self.get_storage().default_acl
 
     def get_action(self):
-        # TODO: What if the storage already has a prefix specified?
-        return self.get_storage().url('')
+        url = self.get_storage().url('')
+        location = self.get_storage().location
+        if url.endswith(location):
+            url = url[:-len(location)]
+        return url
 
     def get_bucket_name(self):
         return self.get_storage().bucket_name
@@ -169,9 +172,6 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     def get_key(self):
         return '{0}${{filename}}'.format(self.get_key_prefix())
-
-    def get_key_prefix(self):
-        return self.upload_to
 
     def get_policy(self):
         # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTConstructPolicy
@@ -242,7 +242,7 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         if not key.startswith(self.get_key_prefix()):
             raise forms.ValidationError('Key does not have required prefix.')
         # Ensure key exists
-        if not self.get_storage().exists(key):
+        if not self._get_key():
             raise forms.ValidationError('Key does not exist.')
         return key
 
@@ -251,7 +251,9 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
 
     def set_content_type(self):
         key = self._get_key()
-        with self.get_storage().open(self.cleaned_data['key_name']) as upload:
+        location = self.get_storage().location
+        storage_path = self.cleaned_data['key_name'][len(location):]
+        with self.get_storage().open(storage_path) as upload:
             content_type = Magic(mime=True).from_buffer(upload.read(1024))
         # TODO
         if not content_type.startswith(self.get_content_type_prefix()):
