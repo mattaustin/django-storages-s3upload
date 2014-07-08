@@ -2,8 +2,11 @@
 django-storages-s3upload
 ========================
 
-This project is under development, as in its current state is far from
-finished.
+This project is under development, and so should be used in production
+environments with a high degree of caution.
+
+Docs:
+http://django-storages-s3upload.readthedocs.org/
 
 
 Please be *VERY* careful with security considerations, and check you know
