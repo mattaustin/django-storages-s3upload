@@ -1,0 +1,17 @@
+<form{% if form_id %} id="{{ form_id }}"{% endif %} action="{{ form.get_action }}" method="post" enctype="multipart/form-data"{% if form_class %} class="{{ form_class }}"{% endif %}{% if csrf_token %} data-csrf-token="{{ csrf_token }}"{% endif %}>
+  <div>{% for field in form.hidden_fields %}{{ field }}{% endfor %}</div>
+  {{ form.non_field_errors }}
+  {% if visible_fields_fallback %}<div class="fallback">{% else %}<fieldset>{% endif %}
+    <ul>
+      {% for field in form.visible_fields %}
+        <li class="{{ field.name|slugify }}{% if field.css_classes %} {{ field.css_classes }}{% endif %}">
+          {{ field.label_tag }}
+          {{ field.errors }}
+          {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+          <div class="field">{{ field }}</div>
+        </li>
+      {% endfor %}
+      <li class="actions"><input name="submit" value="{{ form_submit_value|default:"Upload" }}" type="submit" /></li>
+    </ul>
+  {% if visible_fields_fallback %}</div>{% else %}</fieldset>{% endif %}
+</form>

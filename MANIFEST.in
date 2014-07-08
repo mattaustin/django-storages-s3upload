@@ -1,0 +1,2 @@
+graft s3upload/static
+graft s3upload/templates

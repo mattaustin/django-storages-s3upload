@@ -15,12 +15,13 @@
 # limitations under the License.
 
 
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
+from datetime import timedelta
+from django.conf import settings
 
 
-__title__ = 'django-storages-s3upload'
-__version__ = '0.1.0'
-__url__ = 'https://github.com/mattaustin/django-storages-s3upload'
-__author__ = 'Matt Austin <mail@mattaustin.me.uk>'
-__copyright__ = 'Copyright 2014 Matt Austin'
-__license__ = 'Apache 2.0'
+EXPIRATION_TIMEDELTA = getattr(
+    settings, 'S3UPLOAD_EXPIRATION_TIMEDELTA', timedelta(minutes=30))
+
+
+SET_CONTENT_TYPE = setattr(settings, 'S3UPLOAD_SET_CONTENT_TYPE', True)
