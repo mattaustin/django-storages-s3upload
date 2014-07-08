@@ -1,0 +1,11 @@
+{% extends "s3upload/base.html" %}
+
+
+{% block extrahead %}
+  {{ form.media }}
+{% endblock %}
+
+
+{% block content %}
+  {% include "s3upload/_dropzone_form.html" with form=form %}
+{% endblock %}

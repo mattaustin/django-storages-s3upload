@@ -17,9 +17,11 @@
 
 from __future__ import absolute_import, unicode_literals
 from django.core.files.storage import default_storage
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
+from django.utils.decorators import method_decorator
 from django.views import generic
-from .forms import S3UploadForm, ValidateS3UploadForm
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from .forms import DropzoneS3UploadForm, S3UploadForm, ValidateS3UploadForm
 
 
 class S3UploadFormView(generic.edit.FormMixin,
@@ -42,10 +44,16 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     def form_valid(self, form, *args, **kwargs):
         form.set_content_type()
-        return super(S3UploadFormView, self).form_valid(form, *args, **kwargs)
+        if self.request.is_ajax():
+            return HttpResponse()
+        else:
+            return super(S3UploadFormView, self).form_valid(form, *args,
+                                                            **kwargs)
 
+    @method_decorator(ensure_csrf_cookie)
     def get(self, request, *args, **kwargs):
         # If 'key' is in GET params, we're dealing with a new upload
+        # (S3 redirect)
         if 'key' in request.GET:
             return self.validate_upload()
 
@@ -74,11 +82,15 @@ class S3UploadFormView(generic.edit.FormMixin,
     def get_success_action_redirect(self):
         return self.request.build_absolute_uri()
 
+    @method_decorator(csrf_protect)
+    def post(self, *args, **kwargs):
+        return self.validate_upload()
+
     def validate_upload(self):
         # Validate a new upload
-        data = {'bucket_name': self.request.GET.get('bucket'),
-                'key_name': self.request.GET.get('key'),
-                'etag': self.request.GET.get('etag')}
+        data = {'bucket_name': self.request.REQUEST.get('bucket'),
+                'key_name': self.request.REQUEST.get('key'),
+                'etag': self.request.REQUEST.get('etag')}
         form = ValidateS3UploadForm(
             data=data, storage=self.get_storage(),
             content_type_prefix=self.get_content_type_prefix(),
@@ -87,3 +99,13 @@ class S3UploadFormView(generic.edit.FormMixin,
             return self.form_valid(form)
         else:
             return self.form_invalid(form)
+
+
+class DropzoneS3UploadFormView(S3UploadFormView):
+
+    form_class = DropzoneS3UploadForm
+
+    template_name = 's3upload/dropzone_form.html'
+
+    def get_success_action_redirect(self):
+        return None

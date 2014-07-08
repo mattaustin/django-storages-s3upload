@@ -196,6 +196,14 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         return self.success_action_status_code
 
 
+class DropzoneS3UploadForm(S3UploadForm):
+
+    success_action_status_code = 201
+
+    class Media(object):
+        css = {'all': ['s3upload/css/dropzone.css']}
+        js = ['s3upload/dropzone.js', 's3upload/dropzone-options.js']
+
 
 class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
                            StorageMixin, forms.Form):
