@@ -17,7 +17,7 @@ setup(
     url=__url__,
     packages=['s3upload'],
     include_package_data=True,
-    install_requires=['boto', 'django', 'django-storages'],
+    install_requires=['boto', 'django', 'django-storages', 'python-magic'],
     long_description=read('README.rst'),
     keywords='s3,upload,post,django-storages,django',
     classifiers=[
