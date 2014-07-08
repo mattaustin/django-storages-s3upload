@@ -16,7 +16,8 @@
 
 
 from __future__ import absolute_import, unicode_literals
-from datetime import datetime, timedelta
+from . import settings
+from datetime import datetime
 from django import forms
 from django.core.files.storage import default_storage
 from hashlib import sha1
@@ -85,7 +86,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
     # Any fields below it are ignored.
     file = forms.FileField()
 
-    expiration_timedelta = timedelta(minutes=20)
+    expiration_timedelta = settings.EXPIRATION_TIMEDELTA
 
     field_name_overrides = {'content_type': 'Content-Type',
                             'access_key': 'AWSAccessKeyId'}
