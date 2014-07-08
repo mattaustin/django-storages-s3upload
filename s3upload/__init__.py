@@ -19,7 +19,7 @@ from __future__ import unicode_literals
 
 
 __title__ = 'django-storages-s3upload'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __url__ = 'https://github.com/mattaustin/django-storages-s3upload'
 __author__ = 'Matt Austin <mail@mattaustin.me.uk>'
 __copyright__ = 'Copyright 2014 Matt Austin'
