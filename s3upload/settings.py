@@ -22,3 +22,6 @@ from django.conf import settings
 
 EXPIRATION_TIMEDELTA = getattr(
     settings, 'S3UPLOAD_EXPIRATION_TIMEDELTA', timedelta(minutes=30))
+
+
+SET_CONTENT_TYPE = setattr(settings, 'S3UPLOAD_SET_CONTENT_TYPE', True)

@@ -16,12 +16,13 @@
 
 
 from __future__ import absolute_import, unicode_literals
+from . import settings
+from .forms import DropzoneS3UploadForm, S3UploadForm, ValidateS3UploadForm
 from django.core.files.storage import default_storage
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.utils.decorators import method_decorator
 from django.views import generic
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from .forms import DropzoneS3UploadForm, S3UploadForm, ValidateS3UploadForm
 
 
 class S3UploadFormView(generic.edit.FormMixin,
@@ -33,6 +34,8 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     form_class = S3UploadForm
 
+    set_content_type = settings.SET_CONTENT_TYPE
+
     storage = default_storage
 
     template_name = 's3upload/form.html'
@@ -43,7 +46,6 @@ class S3UploadFormView(generic.edit.FormMixin,
         return HttpResponseBadRequest('Upload does not validate.')
 
     def form_valid(self, form, *args, **kwargs):
-        form.set_content_type()
         if self.request.is_ajax():
             return HttpResponse()
         else:
@@ -96,6 +98,8 @@ class S3UploadFormView(generic.edit.FormMixin,
             content_type_prefix=self.get_content_type_prefix(),
             upload_to=self.get_upload_to())
         if form.is_valid():
+            if self.set_content_type:
+                form.set_content_type()
             return self.form_valid(form)
         else:
             return self.form_invalid(form)
