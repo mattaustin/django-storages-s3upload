@@ -191,6 +191,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         return self.get_storage().secret_key
 
     def get_success_action_redirect(self):
+        # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTConstructingPolicyRedirection
         return self._success_action_redirect
 
     def get_success_action_status_code(self):
