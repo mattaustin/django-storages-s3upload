@@ -57,6 +57,9 @@ class StorageMixin(object):
         self.storage = storage if storage is not None else default_storage
         return super(StorageMixin, self).__init__(**kwargs)
 
+    def get_bucket_name(self):
+        return self.get_storage().bucket_name
+
     def get_storage(self):
         return self.storage
 
@@ -137,9 +140,6 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         if url.endswith(location):
             url = url[:-len(location)]
         return url
-
-    def get_bucket_name(self):
-        return self.get_storage().bucket_name
 
     def get_conditions(self):
         conditions = [
@@ -248,8 +248,6 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
             raise forms.ValidationError('Key does not exist.')
         return key
 
-    def get_bucket_name(self):
-        return self.get_storage().bucket_name
 
     def set_content_type(self):
         key = self._get_key()
