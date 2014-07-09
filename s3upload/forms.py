@@ -266,22 +266,20 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
             raise forms.ValidationError('Key does not exist.')
         return key
 
-    def get_file(self, *args, **kwargs):
-        """Open the uploaded file from the storage backend.
+    def get_file_path(self):
+        """Returns the uploaded file path from the storage backend.
 
-        :returns: Open file.
-        :rtype: :py:class:`storages.backends.s3boto.S3BotoStorageFile`
+        :returns: File path from the storage backend.
+        :rtype: :py:class:`unicode`
 
         """
-
         location = self.get_storage().location
-        storage_path = self.cleaned_data['key_name'][len(location):]
-        return self.get_storage().open(storage_path, *args, **kwargs)
+        return self.cleaned_data['key_name'][len(location):]
 
     def set_content_type(self):
         """Save the real content type of the upload to the key metadata."""
         key = self._get_key()
-        with self.get_file() as upload:
+        with self.get_storage().open(self.get_file_path()) as upload:
             content_type = Magic(mime=True).from_buffer(upload.read(1024))
         # TODO
         if not content_type.startswith(self.get_content_type_prefix()):
