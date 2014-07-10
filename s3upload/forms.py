@@ -57,6 +57,9 @@ class StorageMixin(object):
         self.storage = storage if storage is not None else default_storage
         return super(StorageMixin, self).__init__(**kwargs)
 
+    def get_bucket_name(self):
+        return self.get_storage().bucket_name
+
     def get_storage(self):
         return self.storage
 
@@ -138,9 +141,6 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
             url = url[:-len(location)]
         return url
 
-    def get_bucket_name(self):
-        return self.get_storage().bucket_name
-
     def get_conditions(self):
         conditions = [
             '{{"acl": "{0}"}}'.format(self.get_acl()),
@@ -209,15 +209,30 @@ class DropzoneS3UploadForm(S3UploadForm):
 
 class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
                            StorageMixin, forms.Form):
-    """Form used to validate callback params."""
+    """Form used to validate returned data from S3.
+
+    Not for use in templates - we're only processing/validating the provided
+    data.
+
+    """
 
     bucket_name = forms.CharField(widget=forms.HiddenInput())
+    """Name of the S3 bucket."""
 
     etag = forms.CharField(widget=forms.HiddenInput())
+    """Etag of the uploaded file."""
 
     key_name = forms.CharField(widget=forms.HiddenInput())
+    """Key name (path) of the uploaded file."""
 
     def _get_key(self):
+        """Get the `Key` from the S3 bucket for the uploaded file.
+
+        :returns: Key (object) of the uploaded file.
+        :rtype: :py:class:`boto.s3.key.Key`
+
+        """
+
         return self.get_storage().bucket.get_key(self.cleaned_data['key_name'])
 
     def clean(self):
@@ -232,13 +247,16 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         return self.cleaned_data
 
     def clean_bucket_name(self):
-        # Ensure bucket in callback matches bucket name from storage
+        """Validates that the bucket name in the provided data matches the
+        bucket name from the storage backend."""
         bucket_name = self.cleaned_data['bucket_name']
         if not bucket_name == self.get_bucket_name():
             raise forms.ValidationError('Bucket name does not validate.')
         return bucket_name
 
     def clean_key_name(self):
+        """Validates that the key in the provided data starts with the
+        required prefix, and that it exists in the bucket."""
         key = self.cleaned_data['key_name']
         # Ensure key starts with prefix
         if not key.startswith(self.get_key_prefix()):
@@ -248,14 +266,20 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
             raise forms.ValidationError('Key does not exist.')
         return key
 
-    def get_bucket_name(self):
-        return self.get_storage().bucket_name
+    def get_file_path(self):
+        """Returns the uploaded file path from the storage backend.
+
+        :returns: File path from the storage backend.
+        :rtype: :py:class:`unicode`
+
+        """
+        location = self.get_storage().location
+        return self.cleaned_data['key_name'][len(location):]
 
     def set_content_type(self):
+        """Save the real content type of the upload to the key metadata."""
         key = self._get_key()
-        location = self.get_storage().location
-        storage_path = self.cleaned_data['key_name'][len(location):]
-        with self.get_storage().open(storage_path) as upload:
+        with self.get_storage().open(self.get_file_path()) as upload:
             content_type = Magic(mime=True).from_buffer(upload.read(1024))
         # TODO
         if not content_type.startswith(self.get_content_type_prefix()):

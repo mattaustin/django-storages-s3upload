@@ -24,4 +24,4 @@ EXPIRATION_TIMEDELTA = getattr(
     settings, 'S3UPLOAD_EXPIRATION_TIMEDELTA', timedelta(minutes=30))
 
 
-SET_CONTENT_TYPE = setattr(settings, 'S3UPLOAD_SET_CONTENT_TYPE', True)
+SET_CONTENT_TYPE = getattr(settings, 'S3UPLOAD_SET_CONTENT_TYPE', True)
