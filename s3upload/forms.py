@@ -137,7 +137,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
     def get_action(self):
         url = self.get_storage().url('')
         location = self.get_storage().location
-        if url.endswith(location):
+        if location and url.endswith(location):
             url = url[:-len(location)]
         return url
 
@@ -167,7 +167,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     def get_expiration_time(self, refresh=False):
         if not hasattr(self, '_expiration_time') and not refresh:
-            expiration_datetime = datetime.now() + self.expiration_timedelta
+            expiration_datetime = datetime.utcnow() + self.expiration_timedelta
             self._expiration_time = expiration_datetime.timetuple()
         return self._expiration_time
 

@@ -1,2 +1,5 @@
 *.py[co]
+/build/
+/dist/
+/django_storages_s3upload.egg-info/
 /docs/_build/
