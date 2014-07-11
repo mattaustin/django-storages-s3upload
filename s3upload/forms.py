@@ -137,7 +137,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
     def get_action(self):
         url = self.get_storage().url('')
         location = self.get_storage().location
-        if url.endswith(location):
+        if location and url.endswith(location):
             url = url[:-len(location)]
         return url
 
