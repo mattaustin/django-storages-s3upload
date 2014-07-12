@@ -37,3 +37,12 @@ If you already have an Amazon S3 Boto backend configured as your project's
     class MyFormView(DropzoneS3UploadFormView):
 
         upload_to = 'test-uploads/'
+
+
+Contents
+--------
+
+.. toctree::
+   :maxdepth: 2
+
+   api/index

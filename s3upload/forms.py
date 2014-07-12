@@ -199,6 +199,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
 
 class DropzoneS3UploadForm(S3UploadForm):
+    """Form for uploading a file directly to an S3 bucket using dropzone.js."""
 
     success_action_status_code = 201
 
