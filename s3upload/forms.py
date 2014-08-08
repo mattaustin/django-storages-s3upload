@@ -72,6 +72,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     acl = forms.CharField(widget=forms.HiddenInput())
 
+    cache_control = forms.CharField(widget=forms.HiddenInput())
+
     content_type = forms.CharField(widget=forms.HiddenInput())
 
     key = forms.CharField(widget=forms.HiddenInput())
@@ -91,7 +93,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     expiration_timedelta = settings.EXPIRATION_TIMEDELTA
 
-    field_name_overrides = {'content_type': 'Content-Type',
+    field_name_overrides = {'cache_control': 'Cache-Control',
+                            'content_type': 'Content-Type',
                             'access_key': 'AWSAccessKeyId'}
 
     success_action_status_code = 204
@@ -109,6 +112,13 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
         if not self.fields['content_type'].initial:
             self.fields['content_type'].initial = 'binary/octet-stream'
+
+        # Only render Cache-Control if a value is provided
+        cache_control = self.get_cache_control()
+        if cache_control:
+            self.fields['cache_control'].initial = cache_control
+        else:
+            self.fields.pop('cache_control')
 
         # Only render success_action_redirect if a value is provided
         success_action_redirect = self.get_success_action_redirect()
@@ -141,6 +151,9 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
             url = url[:-len(location)]
         return url
 
+    def get_cache_control(self):
+        return self.get_storage().headers.get('Cache-Control', '')
+
     def get_conditions(self):
         conditions = [
             '{{"acl": "{0}"}}'.format(self.get_acl()),
@@ -151,6 +164,13 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
             '["eq", "$success_action_status", "{0}"]'.format(
                 self.get_success_action_status_code()),
         ]
+
+        # Only render Cache-Control if a value is provided
+        cache_control = self.get_cache_control()
+        if cache_control:
+            conditions += [
+                '["eq", "$Cache-Control", "{0}"]'.format(cache_control)
+            ]
 
         # Only render success_action_redirect if a value is provided
         success_action_redirect = self.get_success_action_redirect()
@@ -277,6 +297,16 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         location = self.get_storage().location
         return self.cleaned_data['key_name'][len(location):]
 
+    def get_key_metadata(self, key):
+        """Generate metadata dictionary from a bucket key."""
+        metadata = key.metadata.copy()
+        metadata.update({
+            # Set metadata which is 'lost/removed' when reading key metadata
+            b'Cache-Control': b'{0}'.format(key.cache_control),
+            b'Content-Type': b'{0}'.format(key.content_type),
+        })
+        return metadata
+
     def set_content_type(self):
         """Save the real content type of the upload to the key metadata."""
         key = self._get_key()
@@ -285,6 +315,7 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         # TODO
         if not content_type.startswith(self.get_content_type_prefix()):
             raise forms.ValidationError('Content-Type does not validate.')
-        key.update_metadata({b'Content-Type': b'{0}'.format(content_type)})
-        key.copy(key.bucket.name, key.name, key.metadata, preserve_acl=True)
+        metadata = self.get_key_metadata(key)
+        metadata.update({b'Content-Type': b'{0}'.format(content_type)})
+        key.copy(key.bucket.name, key.name, metadata, preserve_acl=True)
     set_content_type.alters_data = True

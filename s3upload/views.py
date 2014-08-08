@@ -28,8 +28,6 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 class S3UploadFormView(generic.edit.FormMixin,
                        generic.base.TemplateResponseMixin, generic.View):
 
-    # TODO: Set additional metadata for upload, e.g. cache?
-
     content_type_prefix = ''  # e.g. 'image/', 'text/'
 
     form_class = S3UploadForm
