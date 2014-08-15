@@ -45,4 +45,5 @@ Contents
 .. toctree::
    :maxdepth: 2
 
+   changes
    api/index
