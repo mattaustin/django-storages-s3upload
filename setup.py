@@ -11,7 +11,8 @@ def read(fname):
 setup(
     name=__title__,
     version=__version__,
-    description='Direct HTTP POST uploads to Amazon S3 with django-storages',
+    description='Direct (client-side) HTTP POST file upload to S3 using '
+                'Django forms/views.',
     author='Matt Austin',
     author_email='mail@mattaustin.me.uk',
     url=__url__,

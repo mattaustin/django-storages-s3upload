@@ -20,9 +20,10 @@ from . import settings
 from datetime import datetime
 from django import forms
 from django.core.files.storage import default_storage
-from hashlib import sha1
+from hashlib import md5, sha1
 from magic import Magic
 import hmac
+import os
 
 
 class ContentTypePrefixMixin(object):
@@ -40,7 +41,7 @@ class ContentTypePrefixMixin(object):
 
 class KeyPrefixMixin(object):
 
-    upload_to = ''  # e.g. 'foo/bar/'
+    upload_to = 'incoming/'  # e.g. 'foo/bar/'
 
     def __init__(self, upload_to=None, **kwargs):
         if upload_to is not None:
@@ -48,7 +49,7 @@ class KeyPrefixMixin(object):
         return super(KeyPrefixMixin, self).__init__(**kwargs)
 
     def get_key_prefix(self):
-        return ''.join([self.get_storage().location, self.upload_to])
+        return os.path.join(self.get_storage().location, self.upload_to)
 
 
 class StorageMixin(object):
@@ -72,6 +73,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     acl = forms.CharField(widget=forms.HiddenInput())
 
+    cache_control = forms.CharField(widget=forms.HiddenInput())
+
     content_type = forms.CharField(widget=forms.HiddenInput())
 
     key = forms.CharField(widget=forms.HiddenInput())
@@ -91,7 +94,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     expiration_timedelta = settings.EXPIRATION_TIMEDELTA
 
-    field_name_overrides = {'content_type': 'Content-Type',
+    field_name_overrides = {'cache_control': 'Cache-Control',
+                            'content_type': 'Content-Type',
                             'access_key': 'AWSAccessKeyId'}
 
     success_action_status_code = 204
@@ -109,6 +113,13 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
         if not self.fields['content_type'].initial:
             self.fields['content_type'].initial = 'binary/octet-stream'
+
+        # Only render Cache-Control if a value is provided
+        cache_control = self.get_cache_control()
+        if cache_control:
+            self.fields['cache_control'].initial = cache_control
+        else:
+            self.fields.pop('cache_control')
 
         # Only render success_action_redirect if a value is provided
         success_action_redirect = self.get_success_action_redirect()
@@ -132,7 +143,14 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         return self.get_storage().access_key
 
     def get_acl(self):
-        return self.get_storage().default_acl
+        """Return the acl to be set on the uploaded file.
+
+        By default this sets a 'private' acl, and should probably be kept that
+        way. You can set the final acl when the upload is validated/processed.
+
+        """
+
+        return 'private'
 
     def get_action(self):
         url = self.get_storage().url('')
@@ -140,6 +158,9 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         if location and url.endswith(location):
             url = url[:-len(location)]
         return url
+
+    def get_cache_control(self):
+        return self.get_storage().headers.get('Cache-Control', '')
 
     def get_conditions(self):
         conditions = [
@@ -151,6 +172,13 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
             '["eq", "$success_action_status", "{0}"]'.format(
                 self.get_success_action_status_code()),
         ]
+
+        # Only render Cache-Control if a value is provided
+        cache_control = self.get_cache_control()
+        if cache_control:
+            conditions += [
+                '["eq", "$Cache-Control", "{0}"]'.format(cache_control)
+            ]
 
         # Only render success_action_redirect if a value is provided
         success_action_redirect = self.get_success_action_redirect()
@@ -199,6 +227,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
 
 class DropzoneS3UploadForm(S3UploadForm):
+    """Form for uploading a file directly to an S3 bucket using dropzone.js."""
 
     success_action_status_code = 201
 
@@ -225,24 +254,26 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
     key_name = forms.CharField(widget=forms.HiddenInput())
     """Key name (path) of the uploaded file."""
 
-    def _get_key(self):
-        """Get the `Key` from the S3 bucket for the uploaded file.
+    process_to = 'processed/'  # e.g. 'foo/bar/'
+    """Path to place processed files in."""
 
-        :returns: Key (object) of the uploaded file.
-        :rtype: :py:class:`boto.s3.key.Key`
-
-        """
-
-        return self.get_storage().bucket.get_key(self.cleaned_data['key_name'])
+    def __init__(self, process_to=None, **kwargs):
+        if process_to is not None:
+            self.process_to = process_to
+        return super(ValidateS3UploadForm, self).__init__(**kwargs)
 
     def clean(self):
         if self.cleaned_data.get('key_name') and self.cleaned_data.get('etag'):
-            key = self._get_key()
+            key = self.get_upload_key()
             # Ensure key and etag match
             if not key.etag == self.cleaned_data['etag']:
                 raise forms.ValidationError('Etag does not validate.')
-            # Ensure content type starts with prefix
+            # Ensure initial content type starts with prefix
             if not key.content_type.startswith(self.get_content_type_prefix()):
+                raise forms.ValidationError('Content-Type does not validate.')
+            # Ensure actual content type starts with prefix
+            content_type = self.get_processed_content_type()
+            if not content_type.startswith(self.get_content_type_prefix()):
                 raise forms.ValidationError('Content-Type does not validate.')
         return self.cleaned_data
 
@@ -262,11 +293,83 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         if not key.startswith(self.get_key_prefix()):
             raise forms.ValidationError('Key does not have required prefix.')
         # Ensure key exists
-        if not self._get_key():
+        if not self.get_upload_key():
             raise forms.ValidationError('Key does not exist.')
         return key
 
-    def get_file_path(self):
+    def get_processed_acl(self):
+        """Return the acl to be set on the processed file."""
+        return self.get_storage().default_acl
+
+    def get_processed_content_type(self):
+        """Determine the actual content type of the upload."""
+        if not hasattr(self, '_processed_content_type'):
+            with self.get_storage().open(self.get_upload_path()) as upload:
+                content_type = Magic(mime=True).from_buffer(upload.read(1024))
+            self._processed_content_type = content_type
+        return self._processed_content_type
+
+    def get_processed_key_name(self):
+        """Return the full path to use for the processed file."""
+        name = self.get_upload_key().name
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        extension = '.{0}'.format(name.split('.')[-1]) if '.' in name else ''
+        digest = md5(''.join([timestamp, name])).hexdigest()
+        return os.path.join(self.get_storage().location, self.process_to,
+                            '{0}{1}'.format(digest, extension))
+
+    def process_upload(self, set_content_type=True):
+        """Process the uploaded file."""
+        metadata = self.get_upload_key_metadata()
+
+        if set_content_type:
+            content_type = self.get_processed_content_type()
+            metadata.update({b'Content-Type': b'{0}'.format(content_type)})
+
+        upload_key = self.get_upload_key()
+        processed_key_name = self.get_processed_key_name()
+        processed_key = upload_key.copy(upload_key.bucket.name,
+                                        processed_key_name, metadata)
+        processed_key.set_acl(self.get_processed_acl())
+        upload_key.delete()
+    process_upload.alters_data = True
+
+    def get_upload_key(self):
+        """Get the `Key` from the S3 bucket for the uploaded file.
+
+        :returns: Key (object) of the uploaded file.
+        :rtype: :py:class:`boto.s3.key.Key`
+
+        """
+
+        if not hasattr(self, '_upload_key'):
+            self._upload_key = self.get_storage().bucket.get_key(
+                self.cleaned_data['key_name'])
+        return self._upload_key
+
+    def get_upload_key_metadata(self):
+        """Generate metadata dictionary from a bucket key."""
+        key = self.get_upload_key()
+        metadata = key.metadata.copy()
+
+        # Some http header properties which are stored on the key need to be
+        # copied to the metadata when updating
+        headers = {
+            # http header name, key attribute name
+            'Cache-Control': 'cache_control',
+            'Content-Type': 'content_type',
+            'Content-Disposition': 'content_disposition',
+            'Content-Encoding': 'content_encoding',
+        }
+
+        for header_name, attribute_name in headers.items():
+            attribute_value = getattr(key, attribute_name, False)
+            if attribute_value:
+                metadata.update({b'{0}'.format(header_name):
+                                 b'{0}'.format(attribute_value)})
+        return metadata
+
+    def get_upload_path(self):
         """Returns the uploaded file path from the storage backend.
 
         :returns: File path from the storage backend.
@@ -275,15 +378,3 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         """
         location = self.get_storage().location
         return self.cleaned_data['key_name'][len(location):]
-
-    def set_content_type(self):
-        """Save the real content type of the upload to the key metadata."""
-        key = self._get_key()
-        with self.get_storage().open(self.get_file_path()) as upload:
-            content_type = Magic(mime=True).from_buffer(upload.read(1024))
-        # TODO
-        if not content_type.startswith(self.get_content_type_prefix()):
-            raise forms.ValidationError('Content-Type does not validate.')
-        key.update_metadata({b'Content-Type': b'{0}'.format(content_type)})
-        key.copy(key.bucket.name, key.name, key.metadata, preserve_acl=True)
-    set_content_type.alters_data = True

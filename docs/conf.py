@@ -14,10 +14,13 @@
 
 import sys
 import os
+from django.conf import settings
 from s3upload import __version__
 
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+
+settings.configure()
 
 
 # If extensions (or modules to document with autodoc) are in another directory,

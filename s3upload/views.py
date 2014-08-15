@@ -28,11 +28,11 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 class S3UploadFormView(generic.edit.FormMixin,
                        generic.base.TemplateResponseMixin, generic.View):
 
-    # TODO: Set additional metadata for upload, e.g. cache?
-
     content_type_prefix = ''  # e.g. 'image/', 'text/'
 
     form_class = S3UploadForm
+
+    process_to = None  # e.g. 'foo/bar/'
 
     set_content_type = settings.SET_CONTENT_TYPE
 
@@ -40,12 +40,13 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     template_name = 's3upload/form.html'
 
-    upload_to = ''  # e.g. 'foo/bar/'
+    upload_to = None  # e.g. 'foo/bar/'
 
     def form_invalid(self, form):
         return HttpResponseBadRequest('Upload does not validate.')
 
     def form_valid(self, form, *args, **kwargs):
+        form.process_upload(set_content_type=self.set_content_type)
         if self.request.is_ajax():
             return HttpResponse()
         else:
@@ -73,10 +74,14 @@ class S3UploadFormView(generic.edit.FormMixin,
         form_kwargs = super(S3UploadFormView, self).get_form_kwargs(*args,
                                                                     **kwargs)
         form_kwargs.update(
-            {'storage': self.get_storage(), 'upload_to': self.get_upload_to(),
+            {'storage': self.get_storage(),
+             'upload_to': self.get_upload_to(),
              'content_type_prefix': self.get_content_type_prefix(),
              'success_action_redirect': self.get_success_action_redirect()})
         return form_kwargs
+
+    def get_process_to(self):
+        return self.process_to
 
     def get_storage(self):
         return self.storage
@@ -96,10 +101,8 @@ class S3UploadFormView(generic.edit.FormMixin,
         form = ValidateS3UploadForm(
             data=data, storage=self.get_storage(),
             content_type_prefix=self.get_content_type_prefix(),
-            upload_to=self.get_upload_to())
+            upload_to=self.get_upload_to(), process_to=self.get_process_to())
         if form.is_valid():
-            if self.set_content_type:
-                form.set_content_type()
             return self.form_valid(form)
         else:
             return self.form_invalid(form)
