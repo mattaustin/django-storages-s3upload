@@ -20,7 +20,6 @@ from . import settings
 from datetime import datetime
 from django import forms
 from django.core.files.storage import default_storage
-from django.utils.functional import cached_property
 from hashlib import md5, sha1
 from magic import Magic
 import hmac
