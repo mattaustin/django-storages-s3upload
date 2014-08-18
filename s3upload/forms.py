@@ -257,10 +257,22 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
     process_to = 'processed/'  # e.g. 'foo/bar/'
     """Path to place processed files in."""
 
-    def __init__(self, process_to=None, **kwargs):
+    def __init__(self, process_to=None, processed_key_generator=None,
+                 **kwargs):
         if process_to is not None:
             self.process_to = process_to
+        if processed_key_generator is not None:
+            self._generate_processed_key_name = processed_key_generator
         return super(ValidateS3UploadForm, self).__init__(**kwargs)
+
+    @staticmethod
+    def _generate_processed_key_name(process_to, upload_name):
+        """Returns a key name to use after processing based on timestamp and
+        upload key name."""
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        name, extension = os.path.splitext(upload_name)
+        digest = md5(''.join([timestamp, upload_name])).hexdigest()
+        return os.path.join(process_to, '{0}.{1}'.format(digest, extension))
 
     def clean(self):
         if self.cleaned_data.get('key_name') and self.cleaned_data.get('etag'):
@@ -304,13 +316,11 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
     def get_processed_key_name(self):
         """Return the full path to use for the processed file."""
         if not hasattr(self, '_processed_key_name'):
-            name = self.get_upload_key().name
-            timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
-            extension = '.{0}'.format(name.split('.')[-1]) if '.' in name else ''
-            digest = md5(''.join([timestamp, name])).hexdigest()
+            path, upload_name = os.path.split(self.get_upload_key().name)
+            key_name = self._generate_processed_key_name(
+                self.process_to, upload_name)
             self._processed_key_name = os.path.join(
-                self.get_storage().location, self.process_to,
-                '{0}{1}'.format(digest, extension))
+                self.get_storage().location, key_name)
         return self._processed_key_name
 
     def get_processed_path(self):

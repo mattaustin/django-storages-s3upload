@@ -34,6 +34,8 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     process_to = None  # e.g. 'foo/bar/'
 
+    processed_key_generator = None
+
     set_content_type = settings.SET_CONTENT_TYPE
 
     storage = default_storage
@@ -83,6 +85,9 @@ class S3UploadFormView(generic.edit.FormMixin,
     def get_process_to(self):
         return self.process_to
 
+    def get_processed_key_generator(self):
+        return self.processed_key_generator
+
     def get_storage(self):
         return self.storage
 
@@ -101,7 +106,8 @@ class S3UploadFormView(generic.edit.FormMixin,
         form = ValidateS3UploadForm(
             data=data, storage=self.get_storage(),
             content_type_prefix=self.get_content_type_prefix(),
-            upload_to=self.get_upload_to(), process_to=self.get_process_to())
+            upload_to=self.get_upload_to(), process_to=self.get_process_to(),
+            processed_key_generator=self.get_processed_key_generator())
         if form.is_valid():
             return self.form_valid(form)
         else:
