@@ -20,6 +20,9 @@ from datetime import timedelta
 from django.conf import settings
 
 
+CSRF_FAILURE_VIEW = settings.CSRF_FAILURE_VIEW
+
+
 EXPIRATION_TIMEDELTA = getattr(
     settings, 'S3UPLOAD_EXPIRATION_TIMEDELTA', timedelta(minutes=30))
 

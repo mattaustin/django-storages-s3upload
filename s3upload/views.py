@@ -19,10 +19,20 @@ from __future__ import absolute_import, unicode_literals
 from . import settings
 from .forms import DropzoneS3UploadForm, S3UploadForm, ValidateS3UploadForm
 from django.core.files.storage import default_storage
+from django.core.urlresolvers import get_callable
 from django.http import HttpResponse, HttpResponseBadRequest
+from django.middleware.csrf import REASON_BAD_TOKEN, REASON_NO_CSRF_COOKIE
+from django.utils.crypto import constant_time_compare
 from django.utils.decorators import method_decorator
 from django.views import generic
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+
+try:
+    from urllib import parse as urlparse
+    from urllib.parse import urlencode
+except ImportError:
+    from urllib import urlencode
+    import urlparse
 
 
 class S3UploadFormView(generic.edit.FormMixin,
@@ -57,9 +67,20 @@ class S3UploadFormView(generic.edit.FormMixin,
 
     @method_decorator(ensure_csrf_cookie)
     def get(self, request, *args, **kwargs):
+
         # If 'key' is in GET params, we're dealing with a new upload
-        # (S3 redirect)
+        # (S3 redirect) - we should treat this like a POST and validate csrf.
         if 'key' in request.GET:
+
+            csrf_token = request.META.get('CSRF_COOKIE', None)
+            request_csrf_token = request.GET.get('csrfmiddlewaretoken', '')
+            failure_view = get_callable(settings.CSRF_FAILURE_VIEW)
+
+            if not csrf_token:
+                return failure_view(request, REASON_NO_CSRF_COOKIE)
+            if not constant_time_compare(request_csrf_token, csrf_token):
+                return failure_view(request, REASON_BAD_TOKEN)
+
             return self.validate_upload()
 
         form_class = self.get_form_class()
@@ -92,7 +113,16 @@ class S3UploadFormView(generic.edit.FormMixin,
         return self.storage
 
     def get_success_action_redirect(self):
-        return self.request.build_absolute_uri()
+        base_uri = self.request.build_absolute_uri()
+        parts = list(urlparse.urlsplit(base_uri))
+
+        csrf_token = self.request.META.get('CSRF_COOKIE', None)
+        if csrf_token:
+            query = urlparse.parse_qs(parts[3])  # Parse querystring
+            query.update({'csrfmiddlewaretoken': csrf_token})  # Add csrf token
+            parts[3] = urlencode(query)  # Replace querystring
+
+        return urlparse.urlunsplit(parts)
 
     @method_decorator(csrf_protect)
     def post(self, *args, **kwargs):
