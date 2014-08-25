@@ -2,7 +2,7 @@ function pingServer(file) {
     // Ping our server with the data returned by the S3 repsonse
     'use strict';
 
-    // Although the file has been sucessfully uploads, don't show the success
+    // Although the file has been sucessfully uploaded, don't show the success
     // styling until it has also been successfully processed.
     file.previewElement.classList.remove('dz-success');
 
