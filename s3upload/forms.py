@@ -257,10 +257,22 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
     process_to = 'processed/'  # e.g. 'foo/bar/'
     """Path to place processed files in."""
 
-    def __init__(self, process_to=None, **kwargs):
+    def __init__(self, process_to=None, processed_key_generator=None,
+                 **kwargs):
         if process_to is not None:
             self.process_to = process_to
+        if processed_key_generator is not None:
+            self._generate_processed_key_name = processed_key_generator
         return super(ValidateS3UploadForm, self).__init__(**kwargs)
+
+    @staticmethod
+    def _generate_processed_key_name(process_to, upload_name):
+        """Returns a key name to use after processing based on timestamp and
+        upload key name."""
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        name, extension = os.path.splitext(upload_name)
+        digest = md5(''.join([timestamp, upload_name])).hexdigest()
+        return os.path.join(process_to, '{0}.{1}'.format(digest, extension))
 
     def clean(self):
         if self.cleaned_data.get('key_name') and self.cleaned_data.get('etag'):
@@ -272,7 +284,7 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
             if not key.content_type.startswith(self.get_content_type_prefix()):
                 raise forms.ValidationError('Content-Type does not validate.')
             # Ensure actual content type starts with prefix
-            content_type = self.get_processed_content_type()
+            content_type = self.get_upload_content_type()
             if not content_type.startswith(self.get_content_type_prefix()):
                 raise forms.ValidationError('Content-Type does not validate.')
         return self.cleaned_data
@@ -301,29 +313,32 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         """Return the acl to be set on the processed file."""
         return self.get_storage().default_acl
 
-    def get_processed_content_type(self):
-        """Determine the actual content type of the upload."""
-        if not hasattr(self, '_processed_content_type'):
-            with self.get_storage().open(self.get_upload_path()) as upload:
-                content_type = Magic(mime=True).from_buffer(upload.read(1024))
-            self._processed_content_type = content_type
-        return self._processed_content_type
-
     def get_processed_key_name(self):
         """Return the full path to use for the processed file."""
-        name = self.get_upload_key().name
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
-        extension = '.{0}'.format(name.split('.')[-1]) if '.' in name else ''
-        digest = md5(''.join([timestamp, name])).hexdigest()
-        return os.path.join(self.get_storage().location, self.process_to,
-                            '{0}{1}'.format(digest, extension))
+        if not hasattr(self, '_processed_key_name'):
+            path, upload_name = os.path.split(self.get_upload_key().name)
+            key_name = self._generate_processed_key_name(
+                self.process_to, upload_name)
+            self._processed_key_name = os.path.join(
+                self.get_storage().location, key_name)
+        return self._processed_key_name
+
+    def get_processed_path(self):
+        """Returns the processed file path from the storage backend.
+
+        :returns: File path from the storage backend.
+        :rtype: :py:class:`unicode`
+
+        """
+        location = self.get_storage().location
+        return self.get_processed_key_name()[len(location):]
 
     def process_upload(self, set_content_type=True):
         """Process the uploaded file."""
         metadata = self.get_upload_key_metadata()
 
         if set_content_type:
-            content_type = self.get_processed_content_type()
+            content_type = self.get_upload_content_type()
             metadata.update({b'Content-Type': b'{0}'.format(content_type)})
 
         upload_key = self.get_upload_key()
@@ -332,7 +347,16 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
                                         processed_key_name, metadata)
         processed_key.set_acl(self.get_processed_acl())
         upload_key.delete()
+        return processed_key
     process_upload.alters_data = True
+
+    def get_upload_content_type(self):
+        """Determine the actual content type of the upload."""
+        if not hasattr(self, '_upload_content_type'):
+            with self.get_storage().open(self.get_upload_path()) as upload:
+                content_type = Magic(mime=True).from_buffer(upload.read(1024))
+            self._upload_content_type = content_type
+        return self._upload_content_type
 
     def get_upload_key(self):
         """Get the `Key` from the S3 bucket for the uploaded file.

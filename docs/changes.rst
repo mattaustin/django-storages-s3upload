@@ -2,6 +2,16 @@ Change log
 ==========
 
 
+0.1.5
+-----
+
+* Pass-through (the upload/redirect) and validate CSRF token when processing
+  uploads.
+* Prevent Dropzone 'success' styling until processing has also finished.
+* A custom ``processed_key_generator`` can be passed to ValidateS3UploadForm
+  instances.
+
+
 0.1.4
 -----
 
