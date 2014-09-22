@@ -2,6 +2,14 @@ Change log
 ==========
 
 
+0.1.6
+-----
+
+* New methods ``get_validate_upload_form_class`` and
+  ``get_validate_upload_form_kwargs`` on S3UploadFormView, to make the
+  validation form easier to extend/override. Thanks Josh Crompton.
+
+
 0.1.5
 -----
 
