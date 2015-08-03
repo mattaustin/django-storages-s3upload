@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2014 Matt Austin
+# Copyright 2014-2015 Matt Austin
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,5 +22,5 @@ __title__ = 'django-storages-s3upload'
 __version__ = '0.1.6'
 __url__ = 'https://github.com/mattaustin/django-storages-s3upload'
 __author__ = 'Matt Austin <mail@mattaustin.me.uk>'
-__copyright__ = 'Copyright 2014 Matt Austin'
+__copyright__ = 'Copyright 2014-2015 Matt Austin'
 __license__ = 'Apache 2.0'
