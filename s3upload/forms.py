@@ -49,6 +49,8 @@ class KeyPrefixMixin(object):
         return super(KeyPrefixMixin, self).__init__(**kwargs)
 
     def get_key_prefix(self):
+        # TODO - this means this mixin is also dependent on StorageMixin.
+        # Should this functinality be moved out of the mixin?
         return os.path.join(self.get_storage().location, self.upload_to)
 
 
