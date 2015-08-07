@@ -77,7 +77,8 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
 
     cache_control = forms.CharField(widget=forms.HiddenInput())
 
-    content_type = forms.CharField(widget=forms.HiddenInput())
+    content_type = forms.CharField(initial='binary/octet-stream',
+                                   widget=forms.HiddenInput())
 
     key = forms.CharField(widget=forms.HiddenInput())
 
@@ -112,9 +113,6 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         self.fields['signature'].initial = self.get_signature()
         self.fields['success_action_status'].initial = \
             self.get_success_action_status_code()
-
-        if not self.fields['content_type'].initial:
-            self.fields['content_type'].initial = 'binary/octet-stream'
 
         # Only render Cache-Control if a value is provided
         cache_control = self.get_cache_control()
