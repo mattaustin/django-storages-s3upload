@@ -261,29 +261,14 @@ class TestS3UploadForm(TestCase):
 
     # get_signature  # TODO
 
-    def test_get_signature_calls_get_secret_key(self):
-        form = self.S3UploadFormWithMockPolicy(storage=self.storage_mock)
-        with mock.patch.object(forms.S3UploadForm, 'get_secret_key',
-                               mock.Mock(return_value='TEST_SECRET_KEY')):
-            form.get_signature()
-            self.assertTrue(form.get_secret_key.called)
-
     @mock.patch.object(forms.S3UploadForm, '__init__',
                        mock.Mock(return_value=None))
     @mock.patch.object(forms.S3UploadForm, 'get_policy',
                        mock.Mock(return_value='TEST_POLICY'))
-    @mock.patch.object(forms.S3UploadForm, 'get_secret_key',
-                       mock.Mock(return_value='TEST_SECRET_KEY'))
     def test_get_signature_calls_get_policy_key(self):
         form = forms.S3UploadForm()
         form.get_signature()
         self.assertTrue(form.get_policy.call_count == 1)
-
-    # get_secret_key
-
-    def test_get_secret_key_returns_storage_secret_key(self):
-        form = self.S3UploadFormWithMockPolicy(storage=self.storage_mock)
-        self.assertEqual(form.get_secret_key(), self.storage_mock.secret_key)
 
     # get_success_action_redirect
 

@@ -17,12 +17,13 @@
 
 from __future__ import absolute_import, unicode_literals
 from . import settings
+from base64 import b64encode
 from datetime import datetime
 from django import forms
 from django.core.files.storage import default_storage
-from hashlib import md5, sha1
+from django.utils.encoding import smart_bytes, smart_text
+from hashlib import md5
 from magic import Magic
-import hmac
 import os
 
 
@@ -132,9 +133,6 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         else:
             self.fields.pop('success_action_redirect')
 
-    def _base64_encode(self, string):
-        return string.encode('base64').replace('\n', '')
-
     def add_prefix(self, field_name):
         # Here we abuse the add_prefix method in order to override the input
         # names of certain fields which require non-pythonic names.
@@ -163,7 +161,7 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         return url
 
     def get_cache_control(self):
-        return self.get_storage().headers.get('Cache-Control', '')
+        return smart_text(self.get_storage().headers.get('Cache-Control', ''))
 
     def get_conditions(self):
         conditions = [
@@ -205,18 +203,15 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
     def get_policy(self):
         # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTConstructPolicy
         connection = self.get_connection()
+        # conditions = [smart_bytes(condition) for condition in self.get_conditions()]
         policy = connection.build_post_policy(self.get_expiration_time(),
                                               self.get_conditions())
-        return self._base64_encode(policy.replace('\n', '').encode('utf-8'))
+        return b64encode(smart_bytes(policy))
 
     def get_signature(self):
         # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTConstructingPolicySignature
-        digest = hmac.new(self.get_secret_key().encode('utf-8'),
-                          self.get_policy(), sha1).digest()
-        return self._base64_encode(digest)
-
-    def get_secret_key(self):
-        return self.get_storage().secret_key
+        return self.get_connection()._auth_handler.sign_string(
+            smart_text(self.get_policy()))
 
     def get_success_action_redirect(self):
         # http://docs.aws.amazon.com/AmazonS3/latest/dev/HTTPPOSTForms.html#HTTPPOSTConstructingPolicyRedirection
@@ -271,7 +266,8 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         upload key name."""
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         name, extension = os.path.splitext(upload_name)
-        digest = md5(''.join([timestamp, upload_name])).hexdigest()
+        digest = md5(
+            smart_bytes(''.join([timestamp, upload_name]))).hexdigest()
         return os.path.join(process_to, '{0}.{1}'.format(digest, extension))
 
     def clean(self):
@@ -339,7 +335,8 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
 
         if set_content_type:
             content_type = self.get_upload_content_type()
-            metadata.update({b'Content-Type': b'{0}'.format(content_type)})
+            metadata.update({
+                smart_text('Content-Type'): smart_text(content_type)})
 
         upload_key = self.get_upload_key()
         processed_key_name = self.get_processed_key_name()
@@ -389,8 +386,7 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         for header_name, attribute_name in headers.items():
             attribute_value = getattr(key, attribute_name, False)
             if attribute_value:
-                metadata.update({b'{0}'.format(header_name):
-                                 b'{0}'.format(attribute_value)})
+                metadata.update({header_name: attribute_value})
         return metadata
 
     def get_upload_path(self):
