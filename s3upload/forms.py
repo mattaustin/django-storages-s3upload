@@ -268,7 +268,7 @@ class ValidateS3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin,
         name, extension = os.path.splitext(upload_name)
         digest = md5(
             smart_bytes(''.join([timestamp, upload_name]))).hexdigest()
-        return os.path.join(process_to, '{0}.{1}'.format(digest, extension))
+        return os.path.join(process_to, ''.join([digest, extension]))
 
     def clean(self):
         if self.cleaned_data.get('key_name') and self.cleaned_data.get('etag'):
