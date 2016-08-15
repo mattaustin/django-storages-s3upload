@@ -267,6 +267,7 @@ class TestS3UploadForm(TestCase):
                        mock.Mock(return_value='TEST_POLICY'))
     def test_get_signature_calls_get_policy_key(self):
         form = forms.S3UploadForm()
+        form.storage = self.storage_mock
         form.get_signature()
         self.assertTrue(form.get_policy.call_count == 1)
 
