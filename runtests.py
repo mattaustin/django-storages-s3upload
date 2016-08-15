@@ -6,10 +6,7 @@ import django
 import sys
 
 
-def run_tests(test_args):
-
-    if not test_args:
-        test_args = ['tests']
+def run_tests(**test_args):
 
     settings.configure(
         DEBUG=True,
@@ -31,14 +28,17 @@ def run_tests(test_args):
     except AttributeError:
         pass
 
+    if not test_args:
+        test_args = ['tests']
+
     TestRunner = get_runner(settings)
     test_runner = TestRunner()
 
     failures = test_runner.run_tests(test_args)
 
-    sys.exit(bool(failures))
+    if failures:
+        sys.exit(bool(failures))
 
 
 if __name__ == '__main__':
-    test_args = sys.argv[1:]
-    run_tests(test_args)
+    run_tests(*sys.argv[1:])
