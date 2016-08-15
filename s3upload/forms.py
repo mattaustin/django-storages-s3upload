@@ -60,6 +60,9 @@ class StorageMixin(object):
         self.storage = storage if storage is not None else default_storage
         return super(StorageMixin, self).__init__(**kwargs)
 
+    def get_connection(self):
+        return self.get_storage().connection
+
     def get_bucket_name(self):
         return self.get_storage().bucket_name
 
@@ -189,9 +192,6 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
             ]
 
         return conditions
-
-    def get_connection(self):
-        return self.get_storage().connection
 
     def get_expiration_time(self, refresh=False):
         if not hasattr(self, '_expiration_time') and not refresh:

@@ -121,6 +121,14 @@ class TestStorageMixin(TestCase):
         form = self.FormWithStorageMixin(storage=test_storage)
         self.assertEqual(form.get_bucket_name(), test_storage.bucket_name)
 
+    # get_connection
+
+    def test_get_connection_returns_storage_connection(self):
+        test_storage = mock.MagicMock(spec=Storage,
+                                      connection='TEST_STORAGE_CONNECTION')
+        form = self.FormWithStorageMixin(storage=test_storage)
+        self.assertEqual(form.get_connection(), test_storage.connection)
+
     # get_storage
 
     def test_get_storage_returns_set_storage(self):
@@ -216,13 +224,6 @@ class TestS3UploadForm(TestCase):
                                mock.Mock(return_value='TEST_ACL')):
             form.get_conditions()
             self.assertTrue(form.get_acl.called)
-
-    # get_connection
-
-    def test_get_connection_returns_storage_connection(self):
-        self.storage_mock.connection = 'TEST_STORAGE_CONNECTION'
-        form = self.S3UploadFormWithMockPolicy(storage=self.storage_mock)
-        self.assertEqual(form.get_connection(), self.storage_mock.connection)
 
     # get_expiration_time  # TODO
 
