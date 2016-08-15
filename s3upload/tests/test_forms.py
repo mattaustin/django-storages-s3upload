@@ -6,6 +6,8 @@ from django.test import TestCase
 from django.utils.encoding import smart_str
 from s3upload import forms
 from storages.backends.s3boto import S3BotoStorage
+import unittest
+
 
 try:  # Python 3
     from unittest import mock
@@ -66,6 +68,7 @@ class TestKeyPrefixMixin(TestCase):
 
     # get_key_prefix
 
+    @unittest.skip('Not implemented.')
     def test_get_key_prefix_joins_storage_location_with_upload_to(self):
         # TODO
         # https://joeray.me/mocking-files-and-file-storage-for-testing-django-models.html
@@ -175,33 +178,7 @@ class TestS3UploadForm(TestCase):
         self.assertEqual(form.fields['success_action_status'].initial,
                          form.get_success_action_status_code())
 
-    #    def __init__(self, success_action_redirect=None, **kwargs):
-
-    #        # Only render Cache-Control if a value is provided
-    #        cache_control = self.get_cache_control()
-    #        if cache_control:
-    #            self.fields['cache_control'].initial = cache_control
-    #        else:
-    #            self.fields.pop('cache_control')
-
-    #        # Only render success_action_redirect if a value is provided
-    #        success_action_redirect = self.get_success_action_redirect()
-    #        if success_action_redirect:
-    #            self.fields['success_action_redirect'].initial = \
-    #                success_action_redirect
-    #        else:
-    #            self.fields.pop('success_action_redirect')
-
-    # _base64_encode  # TODO
-
-    #    def _base64_encode(self, string):
-    #        return string.encode('base64').replace('\n', '')
-
     # add_prefix  # TODO
-
-    #    def add_prefix(self, field_name):
-    #        field_name = self.field_name_overrides.get(field_name, field_name)
-    #        return super(S3UploadForm, self).add_prefix(field_name)
 
     # get_access_key
 
@@ -217,13 +194,6 @@ class TestS3UploadForm(TestCase):
 
     # get_action  # TODO
 
-    #    def get_action(self):
-    #        url = self.get_storage().url('')
-    #        location = self.get_storage().location
-    #        if location and url.endswith(location):
-    #            url = url[:-len(location)]
-    #        return url
-
     # get_cache_control
 
     def test_get_cache_control_returns_cache_control_header_from_storage(self):
@@ -238,34 +208,6 @@ class TestS3UploadForm(TestCase):
         self.assertEqual(form.get_cache_control(), '')
 
     # get_conditions  # TODO
-
-    #    def get_conditions(self):
-    #        conditions = [
-    #            '{{"acl": "{0}"}}'.format(self.get_acl()),
-    #            '{{"bucket": "{0}"}}'.format(self.get_bucket_name()),
-    #            '["starts-with", "$Content-Type", "{0}"]'.format(
-    #                self.get_content_type_prefix()),
-    #           '["starts-with", "$key", "{0}"]'.format(self.get_key_prefix()),
-    #            '["eq", "$success_action_status", "{0}"]'.format(
-    #                self.get_success_action_status_code()),
-    #        ]
-
-    #        # Only render Cache-Control if a value is provided
-    #        cache_control = self.get_cache_control()
-    #        if cache_control:
-    #            conditions += [
-    #                '["eq", "$Cache-Control", "s{0}"]'.format(cache_control)
-    #            ]
-
-    #        # Only render success_action_redirect if a value is provided
-    #        success_action_redirect = self.get_success_action_redirect()
-    #        if success_action_redirect:
-    #            conditions += [
-    #                '["eq", "$success_action_redirect", "{0}"]'.format(
-    #                    success_action_redirect)
-    #            ]
-
-    #        return conditions
 
     # TODO - is this a good strategy?
     def test_get_conditions_calls_get_acl(self):
@@ -283,12 +225,6 @@ class TestS3UploadForm(TestCase):
         self.assertEqual(form.get_connection(), self.storage_mock.connection)
 
     # get_expiration_time  # TODO
-
-    #    def get_expiration_time(self, refresh=False):
-    #      if not hasattr(self, '_expiration_time') and not refresh:
-    #       expiration_datetime = datetime.utcnow() + self.expiration_timedelta
-    #            self._expiration_time = expiration_datetime.timetuple()
-    #      return self._expiration_time
 
     def test_get_expiration_time_returns_expiration_time_if_already_set(self):
         test_expiration_time = 'EXPIRATION_TIME'
@@ -322,18 +258,7 @@ class TestS3UploadForm(TestCase):
 
     # get_policy  # TODO
 
-    #    def get_policy(self):
-    #        connection = self.get_connection()
-    #        policy = connection.build_post_policy(self.get_expiration_time(),
-    #                                              self.get_conditions())
-    #      return self._base64_encode(policy.replace('\n', '').encode('utf-8'))
-
     # get_signature  # TODO
-
-    #    def get_signature(self):
-    #        digest = hmac.new(self.get_secret_key().encode('utf-8'),
-    #                          self.get_policy(), sha1).digest()
-    #        return self._base64_encode(digest)
 
     def test_get_signature_calls_get_secret_key(self):
         form = self.S3UploadFormWithMockPolicy(storage=self.storage_mock)
