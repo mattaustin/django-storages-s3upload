@@ -202,6 +202,14 @@ class TestS3UploadForm(TestCase):
 
     # get_action  # TODO
 
+    def test_get_action_removes_querystring_when_generating_url(self):
+        self.storage_mock.url = mock.Mock(
+            return_value='http://www.example.com/?test=query')
+        self.storage_mock.location = ''
+        form = self.S3UploadFormWithMockPolicy(storage=self.storage_mock)
+
+        self.assertEqual(form.get_action(), 'http://www.example.com/')
+
     # get_cache_control
 
     def test_get_cache_control_returns_cache_control_header_from_storage(self):

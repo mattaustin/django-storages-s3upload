@@ -27,6 +27,12 @@ from magic import Magic
 import os
 
 
+try:
+    from urllib import parse as urlparse
+except ImportError:
+    import urlparse
+
+
 class ContentTypePrefixMixin(object):
 
     content_type_prefix = ''  # e.g. 'image/', 'text/'
@@ -154,10 +160,16 @@ class S3UploadForm(ContentTypePrefixMixin, KeyPrefixMixin, StorageMixin,
         return 'private'
 
     def get_action(self):
-        url = self.get_storage().url('')
+        parsed_url = urlparse.urlparse(self.get_storage().url(''))
+        # Strip querystring
+        if parsed_url.query:
+            parsed_url = parsed_url._replace(query='')
+        url = parsed_url.geturl()
+
         location = self.get_storage().location
         if location and url.endswith(location):
             url = url[:-len(location)]
+
         return url
 
     def get_cache_control(self):
